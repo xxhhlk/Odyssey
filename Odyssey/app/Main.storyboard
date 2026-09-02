@@ -481,7 +481,7 @@
                                                                         <userDefinedRuntimeAttributes>
                                                                             <userDefinedRuntimeAttribute type="string" keyPath="alertTitle" value="The ApNonce generator specified is invalid"/>
                                                                             <userDefinedRuntimeAttribute type="string" keyPath="alertMessage">
-                                                                                <string key="value">The nonce is 16 hexadecimal characters (0-9, A-F) and starts with "0x". If you don't know what to put here, leave it empty. The default generator is 0xbd34a880be0b53f3.</string>
+                                                                                <string key="value">The nonce is 16 hexadecimal characters (0-9, A-F) and starts with "0x". If you don't know what to put here, leave it empty. The default generator is 0x1111111111111111.</string>
                                                                             </userDefinedRuntimeAttribute>
                                                                         </userDefinedRuntimeAttributes>
                                                                         <connections>
