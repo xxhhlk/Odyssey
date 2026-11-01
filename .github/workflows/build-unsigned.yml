@@ -25,7 +25,6 @@ jobs:
           TC="$HOME/Library/Developer/Toolchains/OdysseyLegacy.xctoolchain"
           mkdir -p "$(dirname "$TC")"
           mv "$RUNNER_TEMP/legacy-source/XcodeDefault.xctoolchain" "$TC"
-          /usr/libexec/PlistBuddy -c 'Set :Identifier org.odyssey.legacy' "$TC/ToolchainInfo.plist"
 
           SWIFT_LIB="$TC/usr/lib/swift/iphoneos"
           for f in "$SWIFT_LIB/prebuilt-modules"/*; do
@@ -34,7 +33,6 @@ jobs:
           for f in "$TC/usr/lib/swift-5.0/iphoneos"/*; do
             [ -e "$SWIFT_LIB/$(basename "$f")" ] || ln -sfn "$f" "$SWIFT_LIB/$(basename "$f")"
           done
-          ls "$SWIFT_LIB" | head -20
 
           curl -fsSL --retry 3 -o "$RUNNER_TEMP/iPhoneOS13.7.sdk.tar.xz" https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS13.7.sdk.tar.xz
           tar -xf "$RUNNER_TEMP/iPhoneOS13.7.sdk.tar.xz" -C "$RUNNER_TEMP"
@@ -66,7 +64,7 @@ jobs:
             esac
             out+=("$a")
           done
-          exec -a "__NAME__" "__REAL__" "${out[@]}"
+          exec -a "$0" "__REAL__" "${out[@]}"
           '''
 
           tc = pathlib.Path(os.environ["HOME"]) / "Library/Developer/Toolchains/OdysseyLegacy.xctoolchain/usr/bin"
@@ -76,35 +74,41 @@ jobs:
               if not target.exists() or real.exists():
                   continue
               os.rename(target, real)
-              body = template.replace("__NAME__", name).replace("__REAL__", str(real))
-              target.write_text(body)
+              target.write_text(template.replace("__REAL__", str(real)))
               target.chmod(0o755)
           print("wrapped:", sorted(p.name for p in tc.glob("*.real")))
           PY
       - name: Diagnose legacy Swift toolchain
         run: |
           TC="$HOME/Library/Developer/Toolchains/OdysseyLegacy.xctoolchain"
-          export TOOLCHAINS=org.odyssey.legacy
-          echo "== stdlib dir =="
-          ls "$TC/usr/lib/swift/iphoneos" | sort | head -40
-          echo "== Swift module entries =="
-          ls -l "$TC/usr/lib/swift/iphoneos/Swift.swiftmodule" 2>&1 || true
-          echo "== minimal compile =="
+          SDK="/Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS13.7.sdk"
+          echo "== compiler =="
+          "$TC/usr/bin/swiftc" --version || true
+          echo "== stdlib =="
+          ls "$TC/usr/lib/swift/iphoneos/Swift.swiftmodule" 2>&1 || true
+          echo "== minimal arm64e compile =="
           printf 'print("hi")\n' > "$RUNNER_TEMP/t.swift"
-          xcrun --toolchain org.odyssey.legacy --sdk iphoneos13.7 swiftc -target arm64e-apple-ios13.0 -c "$RUNNER_TEMP/t.swift" -o "$RUNNER_TEMP/t.o" -v 2>&1 | tail -30 || true
+          "$TC/usr/bin/swiftc" -target arm64e-apple-ios13.0 -sdk "$SDK" -c "$RUNNER_TEMP/t.swift" -o "$RUNNER_TEMP/t.o" -v 2>&1 | tail -15 || true
+          echo "== minimal arm64 compile =="
+          "$TC/usr/bin/swiftc" -target arm64-apple-ios13.0 -sdk "$SDK" -c "$RUNNER_TEMP/t.swift" -o "$RUNNER_TEMP/t2.o" 2>&1 | tail -5 || true
       - name: Build unsigned IPA
-        env:
-          TOOLCHAINS: org.odyssey.legacy
         run: |
           set -euo pipefail
+          TC="$HOME/Library/Developer/Toolchains/OdysseyLegacy.xctoolchain"
           xcodebuild clean build \
-            -toolchain org.odyssey.legacy \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             ENABLE_USER_SCRIPT_SANDBOXING=NO \
             ONLY_ACTIVE_ARCH=NO \
             "ARCHS=arm64 arm64e" \
             PRODUCT_BUNDLE_IDENTIFIER=org.coolstar.odyssey \
             SDKROOT=iphoneos13.7 \
+            SWIFT_EXEC="$TC/usr/bin/swiftc" \
+            CC="$TC/usr/bin/clang" \
+            CXX="$TC/usr/bin/clang++" \
+            LD="$TC/usr/bin/ld" \
+            AR="$TC/usr/bin/ar" \
+            LIBTOOL="$TC/usr/bin/libtool" \
+            STRIP="$TC/usr/bin/strip" \
             -scheme Odyssey -configuration Release -derivedDataPath build
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/Odyssey.app Payload/
