@@ -30,13 +30,15 @@ jobs:
           curl -fsSL --retry 3 -o "$RUNNER_TEMP/iPhoneOS13.7.sdk.tar.xz" https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS13.7.sdk.tar.xz
           tar -xf "$RUNNER_TEMP/iPhoneOS13.7.sdk.tar.xz" -C "$RUNNER_TEMP"
           test -f "$RUNNER_TEMP/iPhoneOS13.7.sdk/SDKSettings.plist"
+          sudo cp -R "$RUNNER_TEMP/iPhoneOS13.7.sdk" /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS13.7.sdk
+          xcodebuild -showsdks
           ln -s "$GITHUB_WORKSPACE/Deps/SwiftZSTD" "$GITHUB_WORKSPACE/../SwiftZSTD"
       - name: Build unsigned IPA
         env:
           TOOLCHAINS: org.odyssey.legacy
         run: |
           set -euo pipefail
-          xcodebuild clean build -toolchain org.odyssey.legacy CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO "ARCHS=arm64 arm64e" PRODUCT_BUNDLE_IDENTIFIER=org.coolstar.odyssey "SDKROOT=$RUNNER_TEMP/iPhoneOS13.7.sdk" -scheme Odyssey -configuration Release -derivedDataPath build
+          xcodebuild clean build -toolchain org.odyssey.legacy CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO "ARCHS=arm64 arm64e" PRODUCT_BUNDLE_IDENTIFIER=org.coolstar.odyssey -sdk iphoneos13.7 -scheme Odyssey -configuration Release -derivedDataPath build
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/Odyssey.app Payload/
           rm -rf Payload/Odyssey.app/Frameworks
