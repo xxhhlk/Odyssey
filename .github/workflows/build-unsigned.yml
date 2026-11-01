@@ -40,7 +40,7 @@ jobs:
           TOOLCHAINS: org.odyssey.legacy
         run: |
           set -euo pipefail
-          xcodebuild clean build -toolchain org.odyssey.legacy CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO "ARCHS=arm64 arm64e" PRODUCT_BUNDLE_IDENTIFIER=org.coolstar.odyssey -sdk iphoneos13.7 -scheme Odyssey -configuration Release -derivedDataPath build
+          xcodebuild clean build -toolchain org.odyssey.legacy CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO "ARCHS=arm64 arm64e" PRODUCT_BUNDLE_IDENTIFIER=org.coolstar.odyssey -sdk iphoneos13.7 SDKROOT=iphoneos13.7 -scheme Odyssey -configuration Release -derivedDataPath build
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/Odyssey.app Payload/
           rm -rf Payload/Odyssey.app/Frameworks
