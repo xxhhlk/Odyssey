@@ -81,6 +81,17 @@ jobs:
               target.chmod(0o755)
           print("wrapped:", sorted(p.name for p in tc.glob("*.real")))
           PY
+      - name: Diagnose legacy Swift toolchain
+        run: |
+          TC="$HOME/Library/Developer/Toolchains/OdysseyLegacy.xctoolchain"
+          export TOOLCHAINS=org.odyssey.legacy
+          echo "== stdlib dir =="
+          ls "$TC/usr/lib/swift/iphoneos" | sort | head -40
+          echo "== Swift module entries =="
+          ls -l "$TC/usr/lib/swift/iphoneos/Swift.swiftmodule" 2>&1 || true
+          echo "== minimal compile =="
+          printf 'print("hi")\n' > "$RUNNER_TEMP/t.swift"
+          xcrun --toolchain org.odyssey.legacy --sdk iphoneos13.7 swiftc -target arm64e-apple-ios13.0 -c "$RUNNER_TEMP/t.swift" -o "$RUNNER_TEMP/t.o" -v 2>&1 | tail -30 || true
       - name: Build unsigned IPA
         env:
           TOOLCHAINS: org.odyssey.legacy
