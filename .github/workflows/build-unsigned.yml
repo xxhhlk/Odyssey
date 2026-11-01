@@ -27,6 +27,15 @@ jobs:
           mv "$RUNNER_TEMP/legacy-source/XcodeDefault.xctoolchain" "$TC"
           /usr/libexec/PlistBuddy -c 'Set :Identifier org.odyssey.legacy' "$TC/ToolchainInfo.plist"
 
+          SWIFT_LIB="$TC/usr/lib/swift/iphoneos"
+          for f in "$SWIFT_LIB/prebuilt-modules"/*; do
+            ln -sfn "$f" "$SWIFT_LIB/$(basename "$f")"
+          done
+          for f in "$TC/usr/lib/swift-5.0/iphoneos"/*; do
+            [ -e "$SWIFT_LIB/$(basename "$f")" ] || ln -sfn "$f" "$SWIFT_LIB/$(basename "$f")"
+          done
+          ls "$SWIFT_LIB" | head -20
+
           curl -fsSL --retry 3 -o "$RUNNER_TEMP/iPhoneOS13.7.sdk.tar.xz" https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS13.7.sdk.tar.xz
           tar -xf "$RUNNER_TEMP/iPhoneOS13.7.sdk.tar.xz" -C "$RUNNER_TEMP"
 
