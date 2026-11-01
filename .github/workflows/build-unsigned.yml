@@ -65,7 +65,7 @@ jobs:
           echo "MinimumOSVersion=$MIN_OS"
           test "$MIN_OS" = "13.0"
           lipo -info Payload/Odyssey.app/Odyssey
-          lipo -verify_arch arm64 Payload/Odyssey.app/Odyssey
+          lipo Payload/Odyssey.app/Odyssey -verify_arch arm64
           mkdir -p helper-check
           tar -xf Payload/Odyssey.app/basebinaries.tar -C helper-check amfidebilitate
           lipo -detailed_info helper-check/amfidebilitate | grep -E 'architecture |cpusubtype '
