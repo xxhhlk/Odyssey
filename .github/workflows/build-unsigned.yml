@@ -27,6 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -c 'from pathlib import Path; p=Path("Odyssey/Alderis/ColorPickerInnerViewController.swift"); s=p.read_text(); assert s.count("var tab: ColorPickerTab {") == 1; p.write_text(s.replace("var tab: ColorPickerTab {", "var selectedColorTab: ColorPickerTab {"))'
+          python3 -c 'from pathlib import Path; p=Path("Odyssey/exploit/ios13_userspace.c"); s=p.read_text(); marker="#include <xpc/xpc.h>"; assert s.count(marker)==1 and s.count("xpc_connection_create_mach_service(")==3; s=s.replace("xpc_connection_create_mach_service(", "odyssey_xpc_mach_service("); s=s.replace(marker, marker+chr(10)+"#ifndef TASK_SEATBELT_PORT"+chr(10)+"#define TASK_SEATBELT_PORT 7"+chr(10)+"#endif"+chr(10)+"extern xpc_connection_t odyssey_xpc_mach_service(const char *, dispatch_queue_t, uint64_t) __asm__(\"_xpc_connection_create_mach_service\");"); p.write_text(s)'
           xcodebuild clean build CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO ARCHS=arm64 PRODUCT_BUNDLE_IDENTIFIER=org.coolstar.odyssey -sdk iphoneos -scheme Odyssey -configuration Release -derivedDataPath build
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/Odyssey.app Payload/
