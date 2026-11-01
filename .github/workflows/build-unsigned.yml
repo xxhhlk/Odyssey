@@ -32,6 +32,8 @@ jobs:
           test -f "$RUNNER_TEMP/iPhoneOS13.7.sdk/SDKSettings.plist"
           sudo cp -R "$RUNNER_TEMP/iPhoneOS13.7.sdk" /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS13.7.sdk
           sudo /usr/libexec/PlistBuddy -c 'Set :MinimumSDKVersion 13.7' /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Info.plist
+          sudo mv /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk "$RUNNER_TEMP/iPhoneOS18.5.sdk.disabled"
+          sudo ln -sfn iPhoneOS13.7.sdk /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk
           xcodebuild -showsdks | tee "$RUNNER_TEMP/sdks.txt"
           grep -q iphoneos13.7 "$RUNNER_TEMP/sdks.txt"
           ln -s "$GITHUB_WORKSPACE/Deps/SwiftZSTD" "$GITHUB_WORKSPACE/../SwiftZSTD"
