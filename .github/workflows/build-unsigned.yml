@@ -1,0 +1,44 @@
+name: Build unsigned Odyssey IPA
+on:
+  push:
+    branches: [build/unsigned-ipa]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15-intel
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+          xcodebuild -version
+          xcodebuild -showsdks
+      - name: Prepare dependency
+        run: |
+          ln -s "$GITHUB_WORKSPACE/Deps/SwiftZSTD" "$GITHUB_WORKSPACE/../SwiftZSTD"
+          file amfidebilitate/ldid
+          chmod +x amfidebilitate/ldid
+      - name: Build unsigned IPA
+        run: make
+      - name: Verify package
+        run: |
+          set -euo pipefail
+          unzip -t Odyssey.ipa
+          /usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' Payload/Odyssey.app/Info.plist | tee minimum-os.txt
+          test "$(cat minimum-os.txt)" = "13.0"
+          lipo -info Payload/Odyssey.app/Odyssey
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Payload/Odyssey.app/Info.plist
+          shasum -a 1 Odyssey.ipa | tee Odyssey.ipa.sha1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Odyssey-unsigned-iOS13
+          path: |
+            Odyssey.ipa
+            Odyssey.ipa.sha1
+          if-no-files-found: error
+          retention-days: 30
