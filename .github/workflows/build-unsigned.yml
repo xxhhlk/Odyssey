@@ -24,7 +24,14 @@ jobs:
           file amfidebilitate/ldid
           chmod +x amfidebilitate/ldid
       - name: Build unsigned IPA
-        run: make
+        run: |
+          set -euo pipefail
+          python3 -c 'from pathlib import Path; p=Path("Odyssey/Alderis/ColorPickerInnerViewController.swift"); s=p.read_text(); assert s.count("var tab: ColorPickerTab {") == 1; p.write_text(s.replace("var tab: ColorPickerTab {", "var selectedColorTab: ColorPickerTab {"))'
+          xcodebuild clean build CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO ARCHS=arm64 PRODUCT_BUNDLE_IDENTIFIER=org.coolstar.odyssey -sdk iphoneos -scheme Odyssey -configuration Release -derivedDataPath build
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/Odyssey.app Payload/
+          rm -rf Payload/Odyssey.app/Frameworks
+          zip -r9 Odyssey.ipa Payload/Odyssey.app
       - name: Verify package
         run: |
           set -euo pipefail
@@ -32,6 +39,10 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' Payload/Odyssey.app/Info.plist | tee minimum-os.txt
           test "$(cat minimum-os.txt)" = "13.0"
           lipo -info Payload/Odyssey.app/Odyssey
+          tar -xf Payload/Odyssey.app/basebinaries.tar amfidebilitate
+          lipo -detailed_info amfidebilitate
+          otool -arch arm64e -hv amfidebilitate
+          codesign -dv Payload/Odyssey.app 2>&1 && exit 1 || test $? -eq 1
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Payload/Odyssey.app/Info.plist
           shasum -a 1 Odyssey.ipa | tee Odyssey.ipa.sha1
       - uses: actions/upload-artifact@v4
