@@ -13,22 +13,30 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Select Xcode
-        run: |
-          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
-          xcodebuild -version
-          xcodebuild -showsdks
-      - name: Prepare dependency
-        run: |
-          ln -s "$GITHUB_WORKSPACE/Deps/SwiftZSTD" "$GITHUB_WORKSPACE/../SwiftZSTD"
-          file amfidebilitate/ldid
-          chmod +x amfidebilitate/ldid
-      - name: Build unsigned IPA
+      - name: Prepare Xcode and legacy iOS 13 toolchain
         run: |
           set -euo pipefail
-          python3 -c 'from pathlib import Path; p=Path("Odyssey/Alderis/ColorPickerInnerViewController.swift"); s=p.read_text(); assert s.count("var tab: ColorPickerTab {") == 1; p.write_text(s.replace("var tab: ColorPickerTab {", "var selectedColorTab: ColorPickerTab {"))'
-          python3 -c 'from pathlib import Path; p=Path("Odyssey/exploit/ios13_userspace.c"); s=p.read_text(); marker="#include <xpc/xpc.h>"; assert s.count(marker)==1 and s.count("xpc_connection_create_mach_service(")==3; s=s.replace("xpc_connection_create_mach_service(", "odyssey_xpc_mach_service("); s=s.replace(marker, marker+chr(10)+"#ifndef TASK_SEATBELT_PORT"+chr(10)+"#define TASK_SEATBELT_PORT 7"+chr(10)+"#endif"+chr(10)+"extern xpc_connection_t odyssey_xpc_mach_service(const char *, dispatch_queue_t, uint64_t) __asm__(\"_xpc_connection_create_mach_service\");"); p.write_text(s)'
-          xcodebuild clean build CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO ARCHS=arm64 PRODUCT_BUNDLE_IDENTIFIER=org.coolstar.odyssey -sdk iphoneos -scheme Odyssey -configuration Release -derivedDataPath build
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version
+          git clone --no-checkout https://github.com/nahtedetihw/Xcode11Toolchain.git "$RUNNER_TEMP/legacy-source"
+          git -C "$RUNNER_TEMP/legacy-source" checkout f20b1422fe2733e7658632a037959d2c3766b257
+          mkdir -p "$HOME/Library/Developer/Toolchains"
+          mv "$RUNNER_TEMP/legacy-source/XcodeDefault.xctoolchain" "$HOME/Library/Developer/Toolchains/OdysseyLegacy.xctoolchain"
+          /usr/libexec/PlistBuddy -c 'Set :Identifier org.odyssey.legacy' "$HOME/Library/Developer/Toolchains/OdysseyLegacy.xctoolchain/ToolchainInfo.plist"
+          export TOOLCHAINS=org.odyssey.legacy
+          xcrun --find swiftc
+          xcrun swiftc --version
+          xcrun clang --version
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/iPhoneOS13.7.sdk.tar.xz" https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS13.7.sdk.tar.xz
+          tar -xf "$RUNNER_TEMP/iPhoneOS13.7.sdk.tar.xz" -C "$RUNNER_TEMP"
+          test -f "$RUNNER_TEMP/iPhoneOS13.7.sdk/SDKSettings.plist"
+          ln -s "$GITHUB_WORKSPACE/Deps/SwiftZSTD" "$GITHUB_WORKSPACE/../SwiftZSTD"
+      - name: Build unsigned IPA
+        env:
+          TOOLCHAINS: org.odyssey.legacy
+        run: |
+          set -euo pipefail
+          xcodebuild clean build -toolchain org.odyssey.legacy CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO "ARCHS=arm64 arm64e" PRODUCT_BUNDLE_IDENTIFIER=org.coolstar.odyssey "SDKROOT=$RUNNER_TEMP/iPhoneOS13.7.sdk" -scheme Odyssey -configuration Release -derivedDataPath build
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/Odyssey.app Payload/
           rm -rf Payload/Odyssey.app/Frameworks
@@ -37,13 +45,15 @@ jobs:
         run: |
           set -euo pipefail
           unzip -t Odyssey.ipa
-          /usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' Payload/Odyssey.app/Info.plist | tee minimum-os.txt
-          test "$(cat minimum-os.txt)" = "13.0"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' Payload/Odyssey.app/Info.plist)" = 13.0
           lipo -info Payload/Odyssey.app/Odyssey
-          tar -xf Payload/Odyssey.app/basebinaries.tar amfidebilitate
-          lipo -detailed_info amfidebilitate
-          otool -arch arm64e -hv amfidebilitate
-          codesign -dv Payload/Odyssey.app 2>&1 && exit 1 || test $? -eq 1
+          lipo -verify_arch arm64 arm64e Payload/Odyssey.app/Odyssey
+          otool -arch arm64e -hv Payload/Odyssey.app/Odyssey
+          mkdir helper-check
+          tar -xf Payload/Odyssey.app/basebinaries.tar -C helper-check amfidebilitate
+          lipo -detailed_info helper-check/amfidebilitate
+          otool -arch arm64e -hv helper-check/amfidebilitate
+          if codesign -dv Payload/Odyssey.app 2>&1; then exit 1; fi
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Payload/Odyssey.app/Info.plist
           shasum -a 1 Odyssey.ipa | tee Odyssey.ipa.sha1
       - uses: actions/upload-artifact@v4
